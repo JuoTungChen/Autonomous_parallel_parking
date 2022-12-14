@@ -1,4 +1,4 @@
- # Applied Optimal Control Final Project Autonomous Parallel Parking
+ # Autonomous Parallel Parking
 
 ## Objectives:
 The objective of this project – Autonomous Parallel Parking – is to develop an optimal
