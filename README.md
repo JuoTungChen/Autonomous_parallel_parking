@@ -44,10 +44,10 @@ method for the task, as it includes final time as an optimization variable which
 ## Results:
 
 
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_4.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_5.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_6.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_7.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_4.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_5.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_6.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_7.gif)
 
 
 
