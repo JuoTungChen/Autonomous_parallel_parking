@@ -9,7 +9,8 @@ which has kinematic constraints, i.e., the vehicle is constrained such that it c
 an arbitrary direction in its configuration space. In our case, the vehicle is rear-wheel driven,
 operated under the assumption that the wheels roll without slipping.
 The dynamics of the vehicle is given by:
-$$
+
+```math
     \dot{x} = f(x,u) = 
     \begin{bmatrix}
         \dot{x} \\
@@ -25,7 +26,7 @@ $$
         u_1 \\
         u_2
     \end{bmatrix}
-$$
+```
 
 The trajectory generation and obstacle avoidance can be formulated as a constrained noninear optimal control problem, where we need to minimize the cost of the system. Our goal is to minimize the control parameters $u = (\dot{v}, \dot{\delta})$, so the cost function L(x, u, t) will be a quadratic function subjected to the inequality constraints $f(x, u, t)$. In addition, obstacles will be added as a penalty term to the cost function. 
 
