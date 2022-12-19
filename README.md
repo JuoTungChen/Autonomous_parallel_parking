@@ -37,18 +37,18 @@ method for the task, as it includes final time as an optimization variable which
 
 
 &nbsp;
-## Environmental Setup:
-
+<!-- ## Environmental Setup:
+ -->
 
 
 ## Results:
 
 
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/Trajectory_0.png)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/Trajectory_2.png)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/Trajectory_4.png)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/Trajectory_5.png)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/Trajectory_6.png)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_4.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_5.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_6.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParlingSlot_7.gif)
+
 
 
 
