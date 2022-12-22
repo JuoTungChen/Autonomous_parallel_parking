@@ -1,20 +1,26 @@
-# EN.530.603 Applied Optimal Control
-# Final Project
+"""
+EN.530.603 Applied Optimal Control
+Final Project - Autonomous Parallel Parking
+Team members: Juo-Tung Chen, Iou-Sheng Chang
+"""
 
-# -- Packages
+# ----------importing Packages---------------
 # general
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from functools import partial
 from trajopt_sqp import trajopt_sqp
-# import userinput packages
+import cv2
+
+# userinput packages
 import tkinter as tk
 from tkinter import simpledialog
 from tkinter import messagebox
-import cv2
 
-## -- Min Distance b/w Vehicle and Rectangular Obstacles
+np.set_printoptions(suppress=True)    # suppress scientific notations in the text on the plot
+
+## ------Min Distance b/w Vehicle and Rectangular Obstacles---------
 # Checking if a point is in line shadow
 def point_in_line_shadow(p1: np.ndarray, p2: np.ndarray, q: np.ndarray) -> bool:
     segment_length = np.linalg.norm(p2 - p1)
@@ -70,6 +76,7 @@ def get_min_distance_rectangles(r1: list, r2: list) -> float:
     return min(min_r1_to_r2, min_r2_to_r1)
 
 
+# ------- class for implementing Direct Collocation ----------
 
 class Direct_Collocation:
 
@@ -78,23 +85,13 @@ class Direct_Collocation:
     # time horizon and segments
     self.parking_slot = parking_slot
     self.tf = int(tf)
-    # self.dt = 1
-    # self.N = (self.tf)
     self.N = 32
-
     self.dt = self.tf / self.N
-
-    self.xlim = bound_xlim
-    self.ylim = bound_ylim
 
     # cost function parameters
     self.Q = np.diag([0, 0, 0, 0, 0])
-    self.R = np.diag([1, 3])
-    self.Qf = np.diag([5, 5, 50, 15, 3])     
-
-
-    # self.Qf = np.diag([5, 5, 40, 8, 3])     #tuned
-
+    self.R = np.diag([1, 5])
+    self.Qf = np.diag([5, 5, 30, 10, 3])     
 
     # add constraints (vehicle obstacles and walls)
     self.os_w = 2.0               # Width in x
@@ -103,16 +100,16 @@ class Direct_Collocation:
     self.Nobst = len(self.os_c)   # NUM obstacle (vehicles)
     self.Nwall = 4                # NUM walls
     self.Ncontrol = 4             # NUM control constraints
-    self.u_bound = np.array([[-3, 3], [-2, 2]])
-    self.beta = 1.0
-    self.iteration = 0
-    # initial state
-    self.x0 = x0
+    self.u_bound = np.array([[-1.5, 1.5], [-0.5, 0.5]])     # boundaries for control inputs
+    self.buffer = 0.25            # buffer distance between the obstacles and the vehicle
+    self.xlim = bound_xlim        # boundary for x
+    self.ylim = bound_ylim        # boundary for y
 
-    # derised final parking state
-    self.xf = xf
-
-    self.part = part
+    self.x0 = x0                  # initial state
+    self.xf = xf                  # derised final parking state
+    self.part = part              # which trajectory (1 or 2)
+    self.iteration = 0            # count the numbers of iterations 
+    self.min_dist = 100           # store the min distance between the obstacles and the vehicle throughout the trajectory
 
     # vehicle obstacles corners coordinates
     self.obsts = np.zeros((4, 2, self.Nobst))
@@ -163,22 +160,6 @@ class Direct_Collocation:
     Luu = self.dt * self.R
 
     return L, Lx, Lxx, Lu, Luu
-
-    # if hasattr(self, 'u_bound'):
-      # print('a')
-  #   for i in range(len(self.u_bound)):
-      # if k < self.N:
-      #     for i in range(len(self.u_bound)):
-      #         for j in range(len(self.u_bound[0])):
-      #             if j == 0:   # upper bound
-      #                 c, u_grad = self.calculate_ineq(u[i], self.u_bound[i][j],  1)
-      #             if j == 1:   # lower bound
-      #                 c, u_grad = self.calculate_ineq(u[i], self.u_bound[i][j], -1)
-      #             ## adding penalties to the cost
-      #             L = L + self.beta/2.0 * c **2
-      #             Lu[i] = Lu[i] - self.beta * c * u_grad
-      #     Luu = Luu + self.beta * np.diag([2, 2])
-
     
 
   def Lf(self, x):
@@ -215,7 +196,8 @@ class Direct_Collocation:
     cs = np.zeros(self.Nobst+self.Nwall)
     for i in [x for x in range(self.Nobst) if x != self.parking_slot]:
       minDist = get_min_distance_rectangles(self.carcoord, self.obsts[:,:,i])
-      cs[i] = -minDist
+      self.min_dist =  min(self.min_dist, minDist)        # store the min distance throughout the whole trajectory
+      cs[i] = -minDist + self.buffer
 
     # Walls constraints
     cs[self.Nobst]   = -min(self.carcoord[0,:]-0)
@@ -223,10 +205,6 @@ class Direct_Collocation:
     cs[self.Nobst+2] = -min(self.carcoord[1,:]-0)
     cs[self.Nobst+3] = -min(self.ylim-self.carcoord[1,:])
 
-    # cs[self.Nobst+4] = -u[0]-self.u_bound[0]
-    # cs[self.Nobst+5] = -self.u_bound[1]-u[0]
-    # cs[self.Nobst+6] = -u[1]-self.u_bound[2]
-    # cs[self.Nobst+7] = -self.u_bound[3]-u[1]
     return cs
 
   def conf(self, k, x):
@@ -248,6 +226,7 @@ class Direct_Collocation:
     cs = np.zeros(self.Nobst+self.Nwall+self.Ncontrol)
     for i in [x for x in range(self.Nobst) if x != self.parking_slot]:
       minDist = get_min_distance_rectangles(self.carcoord, self.obsts[:,:,i])
+      self.min_dist =  min(self.min_dist, minDist)          # store the min distance throughout the whole trajectory
       cs[i] = -minDist
 
     # Walls constraints
@@ -255,16 +234,12 @@ class Direct_Collocation:
     cs[self.Nobst+1] = -min(self.xlim-self.carcoord[0,:])
     cs[self.Nobst+2] = -min(self.carcoord[1,:]-0)
     cs[self.Nobst+3] = -min(self.ylim-self.carcoord[1,:])
-    cs[self.Nobst+4] = -min(u[0]-self.u_bound[0])
-    cs[self.Nobst+5] = -min(self.u_bound[1]-u[0])
-    cs[self.Nobst+6] = -min(u[1]-self.u_bound[2])
-    cs[self.Nobst+7] = -min(self.u_bound[3]-u[1])
+
     return cs
 
   def traj(self, us):
-
+    # calculate the state trajectory from the control sequence
     N = us.shape[1]
-
     xs = np.zeros((5, N + 1))
     xs[:, 0] = self.x0
     for k in range(N):
@@ -273,16 +248,8 @@ class Direct_Collocation:
     return xs
 
   def plot_traj(self, xs, us):
-    # print(xs.shape)
-    # print(us.shape)
-
-    # plot state trajectory
-    # self.axs[0].plot(xs[0, :], xs[1, :], '-b')
-    # self.axs[0].axis('equal')
-    # self.axs[0].set_xlabel('x')
-    # self.axs[0].set_ylabel('y')
  
-    # plot 1st control trajectory
+    # plot 1st trajectory
     if (self.part == 1):
       if (self.iteration == 0):
         print("\n1st part of the trajectory:")
@@ -290,83 +257,70 @@ class Direct_Collocation:
       self.iteration = self.iteration + 1
 
       self.axs2.plot(xs[0, :], xs[1, :], '-', c='b', linewidth=1)
-      # self.axs2.axis('equal')
       self.axs2.set_xlabel('x')
       self.axs2.set_ylabel('y')
       self.axs2.set_xlim([0, bound_xlim])
-      # self.axs2.set_xbound(0.0, bound_xlim)
       self.axs2.set_ylim([0, bound_ylim])
 
       # u_1 = acceleration
       self.axs1[0][0].lines.clear()
-      # self.axs1[0][0].grid()
       self.axs1[0][0].plot(np.arange(0, self.tf, self.dt), us[0, :], '-b')
       self.axs1[0][0].relim()
       self.axs1[0][0].autoscale_view()
 
       # u_2 = steering angle rate
       self.axs1[0][1].lines.clear()
-      # self.axs1[0][1].grid()
       self.axs1[0][1].plot(np.arange(0, self.tf, self.dt), us[1, :], '-r')
       self.axs1[0][1].relim()
       self.axs1[0][1].autoscale_view()
 
       # xs[3] = velocity
       self.axs3[0][0].lines.clear()
-      # self.axs3[0][0].grid()
       self.axs3[0][0].plot(np.arange(0, self.tf+self.dt, self.dt), xs[3, :], '-b')
       self.axs3[0][0].relim()
       self.axs3[0][0].autoscale_view()
 
       # xs[4] = steering angle
-      self.axs3[0][1].lines.clear()
-      # self.axs3[0][1].grid()
+      self.axs3[0][1].lines.clear() 
       self.axs3[0][1].plot(np.arange(0, self.tf+self.dt, self.dt), xs[4, :], '-r')
       self.axs3[0][1].relim()
       self.axs3[0][1].autoscale_view()
 
 
 
-    # plot 2nd control trajectory
+    # plot 2nd trajectory
     if (self.part == 2):
       if (self.iteration == 0):
         print("\n2nd part of the trajectory:")
       print("iteration (2nd) = ", self.iteration)
       self.iteration = self.iteration + 1
       self.axs2.plot(xs[0, :], xs[1, :], '-', c='royalblue', linewidth=1)
-      # self.axs2.axis('equal')
       self.axs2.set_xlabel('x')
       self.axs2.set_ylabel('y')
       self.axs2.set_xlim([0, bound_xlim])
-      # self.axs2.set_xbound(0.0, bound_xlim)
       self.axs2.set_ylim([0, bound_ylim])
 
       self.axs1[1][0].lines.clear()
-      # self.axs1[1][0].grid()
       self.axs1[1][0].plot(np.arange(0, self.tf, self.dt), us[0, :], '-b')
       self.axs1[1][0].relim()
       self.axs1[1][0].autoscale_view()
 
       self.axs1[1][1].lines.clear()
-      # self.axs1[1][1].grid()
       self.axs1[1][1].plot(np.arange(0, self.tf, self.dt), us[1, :], '-r')
       self.axs1[1][1].relim()
       self.axs1[1][1].autoscale_view()
 
       # xs[3] = velocity
       self.axs3[1][0].lines.clear()
-      # self.axs3[1][0].grid()
       self.axs3[1][0].plot(np.arange(0, self.tf+self.dt, self.dt), xs[3, :], '-b')
       self.axs3[1][0].relim()
       self.axs3[1][0].autoscale_view()
 
       # xs[4] = steering angle
       self.axs3[1][1].lines.clear()
-      # self.axs3[1][1].grid()
       self.axs3[1][1].plot(np.arange(0, self.tf+self.dt, self.dt), xs[4, :], '-r')
       self.axs3[1][1].relim()
       self.axs3[1][1].autoscale_view()
-
 
     # drawing updated values
     fig2.canvas.draw()
@@ -377,8 +331,7 @@ class Direct_Collocation:
     fig2.canvas.flush_events()
 
 
-
-
+# ------- class for drawing the vehicle ----------
 class Draw_vehicle:
   def __init__(self) -> None:
     self.margin = 0.05
@@ -387,7 +340,6 @@ class Draw_vehicle:
     self.wheel_length = 0.75
     self.wheel_width = 7/20
     self.wheel_positions = self.margin * np.array([[25,15],[25,-15],[-25,15],[-25,-15]])
-    # self.wheel_positions = np.array([[25,15],[25,-15],[-25,15],[-25,-15]])
     self.part = 0
     
     self.car_color = "#069AF3"
@@ -414,18 +366,12 @@ class Draw_vehicle:
 
     # adding car body
     rotated_struct = self.rotate_car(self.car_struct, angle=psi)
-    # rotated_struct += np.array([x,y]) + np.array([10*self.margin,10*self.margin])
     rotated_struct += np.array([x,y])
-    # print("wheels = ", self.wheel_struct)
-    # rendered = cv2.fillPoly(self.background.copy(), [rotated_struct], self.color)
     plot.fill(rotated_struct[:,0], rotated_struct[:,1], color=self.car_color)
-    # 7BC8F6
     rotated_wheel_center = self.rotate_car(self.wheel_positions, angle=psi)
-    # print(rotated_wheel_center)
 
     for i, wheel in enumerate(rotated_wheel_center):
         # rotate front wheels (steering angle + heading)
-        
         if i < 2:
           if self.part == 1:
               rotated_wheel = self.rotate_car(self.wheel_struct, angle=delta+psi)
@@ -435,10 +381,10 @@ class Draw_vehicle:
         else:
             rotated_wheel = self.rotate_car(self.wheel_struct, angle=psi)
         rotated_wheel += np.array([x,y]) + wheel 
-        # print(i, rotated_wheel)
-
         plot.fill(rotated_wheel[:,0], rotated_wheel[:,1], color=self.wheel_color)
 
+
+# --------- main function -----------
 if __name__ == '__main__':
 
   # Parking Slots (center)
@@ -456,7 +402,7 @@ if __name__ == '__main__':
                    [left_distance,  bound_ylim-top_distance-2-3*(car_distance+4)], [bound_xlim-right_distance,  bound_ylim-top_distance-2-3*(car_distance+4)]])
 
 
-  # 2 stage waitpoint parameters
+  # 2 stage intermediate goal parameters
   x_offset = 3
   y_offset = 4
   waitpoints = np.array([[left_distance + x_offset, os_c[0][1]+y_offset],[bound_xlim-right_distance-x_offset, os_c[0][1]+y_offset],
@@ -464,21 +410,13 @@ if __name__ == '__main__':
                        [left_distance + x_offset, os_c[4][1]+y_offset],[bound_xlim-right_distance-x_offset, os_c[4][1]+y_offset],
                        [left_distance + x_offset, os_c[6][1]+y_offset],[bound_xlim-right_distance-x_offset, os_c[6][1]+y_offset]]) 
 
-  # User Input desired parking slot ([0,7])
+  # User Input to select desired parking slot ([0~7])
   ROOT = tk.Tk()
   ROOT.withdraw()
   USER_INP = simpledialog.askstring(title="Autonomous Parallel Parking",
                                   prompt="Parking Slot Selection (0~7):")
   
   # Determine x0 and xf based on user input
-  # if(int(USER_INP) == 0 or int(USER_INP) == 1 or int(USER_INP) == 2 or int(USER_INP) == 3):
-
-  # if(int(USER_INP) == 1 or int(USER_INP) == 3):
-  #   heading = -np.pi/2
-  #   x0_1 = np.array([bound_xlim/2, bound_ylim-top_distance+2, heading, 0, 0])
-  #   xf_1 = np.array([waitpoints[int(USER_INP)][0], waitpoints[int(USER_INP)][1], heading, 0, 0])
-  #   xf_2 = np.array([os_c[int(USER_INP)][0], os_c[int(USER_INP)][1], heading, 0, 0])
-
   if(int(USER_INP) >= 0 or int(USER_INP) < 8):
     print("Selected Parking Slot:", USER_INP)
     heading = np.pi/2
@@ -489,16 +427,16 @@ if __name__ == '__main__':
   else:             # invalud input
     tk.messagebox.showwarning(title="Autonomous Parallel Parking",message="Invalid Parking Slot")
 
-
-  # prob
   if (int(USER_INP) >= 4 and int(USER_INP) < 8):
     t_1 = xf_1[1] / 2
   else:
     t_1 = 1.5* xf_1[1] - 2
+
   print("final time for the 1st trajectory = ",t_1)
   prob = Direct_Collocation(int(USER_INP), x0_1, xf_1, t_1, os_c, bound_xlim, bound_ylim, 1)
 
-  ## -- Plots
+
+  ## ------------ Plots --------------
   plt.ion()
 
   # Control Input Plot
@@ -565,9 +503,12 @@ if __name__ == '__main__':
 
   prob.fig2 = fig2
   prob.axs2 = axs2
-   # initial control sequence
-  us = np.concatenate((np.ones((2, prob.N // 2)) *  0.02,
-                       np.ones((2, prob.N // 2)) * -0.02), axis=1)
+
+  # ------------ 1st trajectory ----------------
+
+  # initial control sequence
+  us = np.concatenate((np.ones((2, prob.N // 2)) *  -0.03,
+                      np.ones((2, prob.N // 2)) * 0.03), axis=1)
 
   # initial state
   xs = prob.traj(us)
@@ -577,7 +518,6 @@ if __name__ == '__main__':
   axs2.axis('equal')
   axs2.set_xlabel(r'$x\ [m]$')
   axs2.set_ylabel(r'$y\ [m]$')
-  # axs2.set_aspect('auto')
   axs2.set_xlim([0, bound_xlim])
   axs2.set_xbound(0.0, bound_xlim)
   axs2.set_ylim([0, bound_ylim])
@@ -585,9 +525,9 @@ if __name__ == '__main__':
 
   
   axs2.add_patch(Rectangle((0, 0), bound_xlim, bound_ylim, fc='none',
-                   color ='midnightblue', lw = 7) )
+                  color ='midnightblue', lw = 7) )
   
-  # Parked vehicles (obsacles)
+  # Plotting Parked vehicles (obsacles)
   for j in range(prob.Nobst):
     if (j == prob.parking_slot):
       rect = plt.Rectangle((prob.obsts[:,:,j][0,0], prob.obsts[:,:,j][0,1]), 
@@ -598,7 +538,6 @@ if __name__ == '__main__':
     axs2.add_patch(rect)
 
   # plot initial trajectory
-
   prob.plot_traj(xs, us)
   
   # plot trajectory
@@ -608,18 +547,15 @@ if __name__ == '__main__':
   print("desired final state for 1st trajectory:", xf_1)
   print("actual final state for 1st trajectory:", xs[:,-1])
 
-  # if(xs[1,-1]-0.05 > xf_1[2]):
-  #   t_2 = x_offset + y_offset - 1    
-  # else:
-  t_2 = x_offset + y_offset    #tuned
+
+
+  # ------------ 2nd trajectory ----------------
+  t_2 = x_offset + y_offset - 1    
+  # t_2 = x_offset + y_offset + 9.5    # for object avoidance
   print("final time for the 2nd trajectory = ",t_2)
 
 
-  # prob_parallel = Direct_Collocation(int(USER_INP), xs[:,-1], xf_2, t_2, os_c, bound_xlim, bound_ylim, 2)
   prob_parallel = Direct_Collocation(int(USER_INP), xf_1, xf_2, t_2, os_c, bound_xlim, bound_ylim, 2)
-
-  # prob_parallel.x0[3]= 0            # reset the initial velocity to 0
-  # prob_parallel.x0[4]= 0            # reset the initial steering angle rate to 0
 
   prob_parallel.axs1 = axs1
 
@@ -627,17 +563,16 @@ if __name__ == '__main__':
   prob_parallel.axs2 = axs2
   prob_parallel.axs3 = axs3
 
-  us_1 = np.concatenate((np.ones((2, prob_parallel.N // 2)) * 0.02,
-                        np.ones((2, prob_parallel.N // 2)) * -0.02), axis=1)
+  us_1 = np.concatenate((np.ones((2, prob_parallel.N // 2)) * 0.04,
+                        np.ones((2, prob_parallel.N // 2)) * -0.04), axis=1)
 
   xs_1 = prob_parallel.traj(us_1)
   xs_1, us_1, cost_1 = trajopt_sqp(xs_1, us_1, prob_parallel)
 
-  # Trajectory animation
+  ## Trajectory animations
+  #----------Plot the 1st part of the trajectory----------
   draw = Draw_vehicle()
-  # fig2.savefig("../results/traj"+str(0)+".jpg")
 
-  """Plot the 1st part of the trajectory"""
   draw.part = 1
   for i in range(xs.shape[1]):
     axs2.add_patch(Rectangle((0, 0), bound_xlim, bound_ylim, fc='none',
@@ -647,12 +582,12 @@ if __name__ == '__main__':
     plt.text(left_distance-1, bottom_distance-1, 'cost 1 = '+str(round(cost, 3)), fontsize = 8, weight='bold')
 
     draw.render(xs[0, i], xs[1, i], xs[2, i], xs[4, i], axs2)
-
-    fig2.savefig("../results/results_"+str(prob.parking_slot)+"/traj_1_"+str(i)+".jpg")
+    # enable to save the plots
+    # fig2.savefig("./results/results_"+str(prob.parking_slot)+"/traj_1_"+str(i)+".jpg")
     plt.pause(prob.dt)
 
-
-  """Plot the 2nd part of the trajectory"""
+  
+  #----------Plot the 2nd part of the trajectory-----------
   print("cost for the 2nd trajectory = ", cost_1)
   prob_parallel.plot_traj(xs_1, us_1)
   draw.part = 2
@@ -677,8 +612,13 @@ if __name__ == '__main__':
   print("desired final state for the 2nd trajectory", xf_2)
   print("final state for the 2nd trajectory", xs_1[:,-1])
 
-  fig1.savefig("../results/results_"+str(prob.parking_slot)+"/control_"+str(prob.parking_slot)+".jpg")
-  fig3.savefig("../results/results_"+str(prob.parking_slot)+"/V_Steering_"+str(prob.parking_slot)+".jpg")
+  print("min dist. for 1st trajectory = ", prob.min_dist)
+  print("min dist. for 2nd trajectory = ", prob_parallel.min_dist)
+
+  # enable to save the plots
+  # fig1.savefig("./results/results_"+str(prob.parking_slot)+"/control_"+str(prob.parking_slot)+".jpg")
+  # fig3.savefig("./results/results_"+str(prob.parking_slot)+"/V_Steering_"+str(prob.parking_slot)+".jpg")
 
   plt.show()
   plt.savefig('')
+  
