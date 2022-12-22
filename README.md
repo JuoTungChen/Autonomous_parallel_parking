@@ -76,6 +76,8 @@ For safety reason, we want to add a buffer distance between the vehicle and the 
 ### Two stage parking
 The standard procedure to perform a parallel parking usually involves a two-stage parking technique, where the vehicle drives forward to first reach an intermediate goal right in front of the parking slot. Then, the vehicle needs to start reversing and adjust its steering angle to park into the slot. Therefore, we adopt the same technique to perform the autonomous parallel parking. We setup an intermediate goal for each parking slots, where we offset the x inward by 3 meters, and the y upward by 4 meters. 
 
+&nbsp;
+
 ## Results:
 For simulation, we created a parking lot containing 8 slots, and the user is able to select which slot they want to park in. Once the parking slot is specified, all the remaining slots will become obstacles, and the boundaries of the parking lot will also become walls, where we want to avoid collision.
 
