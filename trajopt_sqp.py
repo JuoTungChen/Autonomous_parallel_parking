@@ -117,7 +117,7 @@ def trajopt_sqp(xs, us, S):
     c_ineq = NonlinearConstraint(nonlcon_ineq_, lb_ineq, ub_ineq)
     use_ineq_constraints = True
 
-  options = {"maxiter": 5000, 'ftol': 1e-3}
+  options = {"maxiter": 5000, 'ftol': 1e-3}        # reduced
 
   def plot_traj_(z_): return plot_traj(z_, S)
   
