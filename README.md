@@ -81,10 +81,10 @@ The standard procedure to perform a parallel parking usually involves a two-stag
 ## Results:
 For simulation, we created a parking lot containing 8 slots, and the user is able to select which slot they want to park in. Once the parking slot is specified, all the remaining slots will become obstacles, and the boundaries of the parking lot will also become walls, where we want to avoid collision.
 
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_4.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_5.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_6.gif)
-![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/result_plots/ParkingSlot_7.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/results/results_4/ParkingSlot_4.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/results/results_5/ParkingSlot_5.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/results/results_6/ParkingSlot_6.gif)
+![alt text](https://github.com/JuoTungChen/Autonomous_parallel_parking/blob/master/results/results_7/ParkingSlot_7.gif)
 
 
 
